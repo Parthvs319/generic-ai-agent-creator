@@ -32,7 +32,7 @@ public class InMemoryRunner extends agents.service.Runner {
     }
 
     public InMemoryRunner(BaseAgent agent, String appName) {
-        new Runner(agent, appName, new InMemoryArtifactService(), new InMemorySessionService());
+        new Runner(agent, appName, new InMemoryArtifactService(), new agents.service.InMemorySessionService());
     }
 
 

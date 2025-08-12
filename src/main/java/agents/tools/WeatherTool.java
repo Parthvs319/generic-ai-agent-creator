@@ -1,7 +1,9 @@
 package agents.tools;
 
 import agents.agent.Tool;
+import lombok.Data;
 
+@Data
 public class WeatherTool implements Tool {
 
     private final String apiKey;

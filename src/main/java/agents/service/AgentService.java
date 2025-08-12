@@ -11,7 +11,6 @@ import agents.entity.repos.RunnerRepo;
 import agents.helpers.RoutingError;
 import com.google.adk.agents.RunConfig;
 import com.google.adk.artifacts.InMemoryArtifactService;
-import com.google.adk.sessions.InMemorySessionService;
 import com.google.adk.sessions.Session;
 import com.google.genai.types.Content;
 import agents.entity.repos.AgentRepository;
@@ -121,11 +120,10 @@ public class AgentService {
         BaseAgent agent = agentFactory.createAgentInstance(agentEntity);
         System.out.println("Created BaseAgent instance: " + agent);
 
+        String appName = String.format("%s::%s", agentEntity.getName(), user.getId());
+        Runner runner = new Runner(agent , appName , new InMemoryArtifactService() , new InMemorySessionService());
         // Get or create cached runner for this agent
-        UserSessions userSessions = getSessionByUserAndAgentId(user , agentEntity ,agent);
-
-        Runner runner = userSessions.getRunner();
-
+        UserSessions userSessions = getSessionByUserAndAgentId(user , agentEntity ,agent , runner);
 
         Session session = userSessions.getSession();
         System.out.println("Obtained session: " + session);
@@ -175,7 +173,6 @@ public class AgentService {
             UserSessions newUserSession = new UserSessions();
             newUserSession.setAgent(entity);
             newUserSession.setUser(user);
-            newUserSession.setRunner(runner);
             newUserSession.setSessionId(session.id());
             newUserSession.setSession(session);
             newUserSession.setLastUpdateTime(Instant.now());
@@ -194,7 +191,7 @@ public class AgentService {
     }
 
 
-    private UserSessions getSessionByUserAndAgentId(User user, AgentEntity entity , BaseAgent agent) {
+    private UserSessions getSessionByUserAndAgentId(User user, AgentEntity entity , BaseAgent agent , Runner runner) {
         System.out.println("Fetching UserSessions for userId=" + user.getId() + ", agentId=" + entity.getId());
 
         String appName = String.format("%s::%s", entity.getName(), user.getId());
@@ -207,14 +204,13 @@ public class AgentService {
             System.out.println("No existing UserSessions found, creating new session and UserSessions.");
 
 
-            Runner runner = new Runner(agent , appName , new InMemoryArtifactService() , new InMemorySessionService());
             System.out.println("sessions : " + runner.sessionService());
             session = createNewSession(runner, appName, user.getUserId());
 
             UserSessions newUserSession = new UserSessions();
             newUserSession.setAgent(entity);
             newUserSession.setUser(user);
-            newUserSession.setRunner(runner);
+            //newUserSession.setRunner(runner);
             newUserSession.setSessionId(session.id());
             newUserSession.setSession(session);
             newUserSession.setLastUpdateTime(Instant.now());
@@ -223,6 +219,9 @@ public class AgentService {
             userSessionRepository.save(newUserSession);
             System.out.println("Saved new UserSessions: " + newUserSession);
             userSessions = newUserSession;
+        } else {
+            InMemorySessionService inMemorySessionService = (InMemorySessionService) runner.getSessionService();
+            inMemorySessionService.addSession(userSessions.getSession() , userSessions.getSessionId() , user.getUserId() , appName );
         }
         return userSessions;
     }
@@ -315,70 +314,70 @@ private Session getSessionByUserAndAgentId(User user, AgentEntity entity, InMemo
 }
 */
 
-    public String runAgentV2(String agentId, String input, Long userId) {
-        System.out.println("runAgent started with agentId=" + agentId + ", userId=" + userId);
-
-        AgentEntity agentEntity = agentRepo.findByAgentId(agentId)
-                .orElseThrow(() -> new NoSuchElementException("Agent not found"));
-        User user = userRepository.findById(userId)
-                .orElseThrow(() -> new RoutingError("Invalid User Id"));
-
-        // Load agent instance
-        BaseAgent agent = agentFactory.createAgentInstance(agentEntity);
-        String appName = agentEntity.getName() + "::" + user.getId();
-
-        // Load sessionId from UserSessions table
-        UserSessions userSession = userSessionRepository.findByUserIdAndAgentId(user.getId(), agentEntity.getId());
-
-        // Create runner with DB-backed SessionService
-        Runner runner = new Runner(
-                agent,
-                appName,
-                new InMemoryArtifactService(),
-                new DbSessionService(adkSessionRepository) // Inject repo
-        );
-
-        Session session;
-        if (userSession != null && userSession.getSessionId() != null) {
-            // Try to load existing session
-            session = runner.sessionService()
-                    .getSession(appName, user.getUserId(), userSession.getSessionId(), Optional.empty())
-                    .blockingGet();
-
-            if (session == null) {
-                // Session expired/missing → create new
-                session = runner.sessionService().createSession(appName, user.getUserId()).blockingGet();
-                userSession.setSessionId(session.id());
-                userSessionRepository.save(userSession);
-            }
-        } else {
-            // No record → create fresh session
-            session = runner.sessionService().createSession(appName, user.getUserId()).blockingGet();
-
-            userSession = new UserSessions();
-            userSession.setAgent(agentEntity);
-            userSession.setUser(user);
-            userSession.setSessionId(session.id());
-            userSession.setAppName(appName);
-            userSession.setLastUpdateTime(Instant.now());
-            userSessionRepository.save(userSession);
-        }
-
-        // Send message
-        Content userMsg = Content.fromParts(Part.fromText(input));
-        StringBuilder responseBuilder = new StringBuilder();
-
-        Flowable<Event> events = runner.runWithSessionId(
-                user.getUserId(),
-                session.id(),
-                userMsg,
-                RunConfig.builder().build()
-        );
-
-        events.blockingForEach(event -> responseBuilder.append(event.stringifyContent()));
-
-        return responseBuilder.toString();
-    }
+//    public String runAgentV2(String agentId, String input, Long userId) {
+//        System.out.println("runAgent started with agentId=" + agentId + ", userId=" + userId);
+//
+//        AgentEntity agentEntity = agentRepo.findByAgentId(agentId)
+//                .orElseThrow(() -> new NoSuchElementException("Agent not found"));
+//        User user = userRepository.findById(userId)
+//                .orElseThrow(() -> new RoutingError("Invalid User Id"));
+//
+//        // Load agent instance
+//        BaseAgent agent = agentFactory.createAgentInstance(agentEntity);
+//        String appName = agentEntity.getName() + "::" + user.getId();
+//
+//        // Load sessionId from UserSessions table
+//        UserSessions userSession = userSessionRepository.findByUserIdAndAgentId(user.getId(), agentEntity.getId());
+//
+//        // Create runner with DB-backed SessionService
+//        Runner runner = new Runner(
+//                agent,
+//                appName,
+//                new InMemoryArtifactService(),
+//                new DbSessionService(adkSessionRepository) // Inject repo
+//        );
+//
+//        Session session;
+//        if (userSession != null && userSession.getSessionId() != null) {
+//            // Try to load existing session
+//            session = runner.sessionService()
+//                    .getSession(appName, user.getUserId(), userSession.getSessionId(), Optional.empty())
+//                    .blockingGet();
+//
+//            if (session == null) {
+//                // Session expired/missing → create new
+//                session = runner.sessionService().createSession(appName, user.getUserId()).blockingGet();
+//                userSession.setSessionId(session.id());
+//                userSessionRepository.save(userSession);
+//            }
+//        } else {
+//            // No record → create fresh session
+//            session = runner.sessionService().createSession(appName, user.getUserId()).blockingGet();
+//
+//            userSession = new UserSessions();
+//            userSession.setAgent(agentEntity);
+//            userSession.setUser(user);
+//            userSession.setSessionId(session.id());
+//            userSession.setAppName(appName);
+//            userSession.setLastUpdateTime(Instant.now());
+//            userSessionRepository.save(userSession);
+//        }
+//
+//        // Send message
+//        Content userMsg = Content.fromParts(Part.fromText(input));
+//        StringBuilder responseBuilder = new StringBuilder();
+//
+//        Flowable<Event> events = runner.runWithSessionId(
+//                user.getUserId(),
+//                session.id(),
+//                userMsg,
+//                RunConfig.builder().build()
+//        );
+//
+//        events.blockingForEach(event -> responseBuilder.append(event.stringifyContent()));
+//
+//        return responseBuilder.toString();
+//    }
 
 
 
