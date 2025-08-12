@@ -10,6 +10,6 @@ public interface UserSessionRepository extends JpaRepository<UserSessions, Strin
 
     Optional<UserSessions> findById(String id);
 
-    UserSessions findByUserIdAndAgentId(Long userId, Long agentId);
+    UserSessions findByUserIdAndAgentIdAndActive(Long userId, Long agentId , String active);
 
 }

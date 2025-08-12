@@ -8,6 +8,7 @@ import agents.dto.CreateAgentRequest;
 import agents.dto.CreateUserRequest;
 import agents.entity.*;
 import agents.entity.repos.RunnerRepo;
+import agents.helpers.Conversation;
 import agents.helpers.RoutingError;
 import com.google.adk.agents.RunConfig;
 import com.google.adk.artifacts.InMemoryArtifactService;
@@ -130,7 +131,21 @@ public class AgentService {
         System.out.println("Session id: " + session.id());
         System.out.println("User id: " + user.getUserId());
 
-        Content userMsg = Content.fromParts(Part.fromText(input));
+        StringBuilder pastConversation = new StringBuilder("These are the past conversation for this session ! Please use this as reference while responding !");
+
+        for(Conversation conversation : userSessions.getHistory()) {
+            pastConversation.append("This was the input : ").append(conversation.getInput()).append("This was the output : ").append(conversation.getResponse());
+        }
+
+       pastConversation.append("This is my new input for this session : ").append(input);
+
+        System.out.println("pastConversation" + pastConversation);
+        Content userMsg = null;
+        if(userSessions.getHistory().isEmpty()) {
+            userMsg = Content.fromParts(Part.fromText(pastConversation.toString()));
+        } else {
+            userMsg = Content.fromParts(Part.fromText(input));
+        }
         System.out.println("Created Content from input: " + userMsg);
 
         StringBuilder responseBuilder = new StringBuilder();
@@ -151,6 +166,14 @@ public class AgentService {
         }
 
         String response = responseBuilder.toString();
+        Conversation conversation =new Conversation();
+        String id = UUID.randomUUID().toString();
+        conversation.setId(id);
+        conversation.setInput(input);
+        conversation.setResponse(response);
+        userSessions.getHistory().add(conversation);
+        userSessionRepository.save(userSessions);
+
         System.out.println("Completed runAgent, response: " + response);
 
         return response;
@@ -162,7 +185,7 @@ public class AgentService {
         String appName = String.format("%s::%s", entity.getName(), user.getId());
         System.out.println("App name: " + appName);
 
-        UserSessions userSessions = userSessionRepository.findByUserIdAndAgentId(user.getId(), entity.getId());
+        UserSessions userSessions = userSessionRepository.findByUserIdAndAgentIdAndActive(user.getId(), entity.getId() , "true");
         Session session = null;
 
         if (userSessions == null) {
@@ -197,7 +220,7 @@ public class AgentService {
         String appName = String.format("%s::%s", entity.getName(), user.getId());
         System.out.println("App name: " + appName);
 
-        UserSessions userSessions = userSessionRepository.findByUserIdAndAgentId(user.getId(), entity.getId());
+        UserSessions userSessions = userSessionRepository.findByUserIdAndAgentIdAndActive(user.getId(), entity.getId() , "true");
         Session session = null;
 
         if (userSessions == null) {

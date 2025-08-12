@@ -1,6 +1,7 @@
 package agents.entity;
 
 import agents.annotations.DbJsonB;
+import agents.helpers.Conversation;
 import agents.service.*;
 import agents.service.Runner;
 import com.google.adk.events.Event;
@@ -13,7 +14,10 @@ import lombok.NoArgsConstructor;
 import org.hibernate.annotations.JdbcType;
 
 import java.time.Instant;
+import java.util.ArrayList;
+import java.util.HashMap;
 import java.util.List;
+import java.util.Map;
 
 @Entity
 @Data
@@ -47,4 +51,20 @@ public class UserSessions extends AttrsModel {
     @OneToOne
     @JoinColumn(name = "agent_id")
     private AgentEntity agent;
+
+    public List<Conversation> getHistory() {
+        if(history == null) {
+            this.history = new ArrayList<>();
+        }
+        return history;
+    }
+
+    @Lob
+    @Column(columnDefinition = "TEXT")
+    @Convert(converter = ConversationConverter.class)
+    private List<Conversation> history = new ArrayList<>();
+
+    private String active = "true";
+
+
 }
