@@ -4,6 +4,7 @@ import agents.dto.AddToolRequest;
 import agents.dto.CreateAgentRequest;
 import agents.dto.CreateUserRequest;
 import agents.dto.RunRequest;
+import agents.helpers.RoutingError;
 import agents.service.AgentService;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
@@ -43,7 +44,12 @@ public class AgentController {
 
     @PostMapping("/{agentId}/{userId}/run")
     public ResponseEntity<String> runAgent(@PathVariable String agentId , @PathVariable Long userId, @RequestBody RunRequest req) {
-        String out = svc.runAgent(agentId, req.input() , userId);
-        return ResponseEntity.ok(out);
+        try {
+            String out = svc.runAgent(agentId, req.input() , userId);
+            return ResponseEntity.ok(out);
+        } catch (Exception e) {
+            e.printStackTrace();
+            throw new RoutingError(e.getMessage());
+        }
     }
 }

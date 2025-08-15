@@ -152,10 +152,17 @@ public class AgentService {
 
         System.out.println("Starting runner.runAsync...");
 
+        List<agents.helpers.Event> eventArrayList = new ArrayList<>();
         try {
             Flowable<Event> events = runner.runWithSessionId(user.getUserId() , session.id() , userMsg, RunConfig.builder().build());
 
+
             events.blockingForEach(event -> {
+                agents.helpers.Event event1 = new agents.helpers.Event();
+                event1.setInvocationId(event.invocationId());
+                event1.setEventId(event.id());
+                event1.setInput(input);
+                eventArrayList.add(event1);
                 System.out.println("Received event: " + event);
                 responseBuilder.append(event.stringifyContent());
             });
@@ -171,7 +178,12 @@ public class AgentService {
         conversation.setId(id);
         conversation.setInput(input);
         conversation.setResponse(response);
+        List<Event> e = session.events();
+        System.out.println("Code reaches here ");
+        session.events().removeAll(e);
+        userSessions.setSession(session);
         userSessions.getHistory().add(conversation);
+        userSessions.getConfig().getEventList().addAll(eventArrayList);
         userSessionRepository.save(userSessions);
 
         System.out.println("Completed runAgent, response: " + response);
@@ -214,7 +226,7 @@ public class AgentService {
     }
 
 
-    private UserSessions getSessionByUserAndAgentId(User user, AgentEntity entity , BaseAgent agent , Runner runner) {
+    private UserSessions getSessionByUserAndAgentId(User user, AgentEntity entity , BaseAgent agent , Runner runner ) {
         System.out.println("Fetching UserSessions for userId=" + user.getId() + ", agentId=" + entity.getId());
 
         String appName = String.format("%s::%s", entity.getName(), user.getId());
@@ -245,6 +257,15 @@ public class AgentService {
         } else {
             InMemorySessionService inMemorySessionService = (InMemorySessionService) runner.getSessionService();
             inMemorySessionService.addSession(userSessions.getSession() , userSessions.getSessionId() , user.getUserId() , appName );
+            for (agents.helpers.Event event : userSessions.getConfig().getEventList()) {
+                inMemorySessionService.appendEvent(userSessions.getSession() , Event.builder()
+                                .id(event.getEventId())
+                                .invocationId(event.getInvocationId())
+                                .author("user")
+                        .content((Content.fromParts(Part.fromText(event.getInput())))).build());
+            }
+            System.out.println("Events : " + inMemorySessionService.listEvents(appName , user.getUserId() , userSessions.getSessionId()));
+
         }
         return userSessions;
     }
