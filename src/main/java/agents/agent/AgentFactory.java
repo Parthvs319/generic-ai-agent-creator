@@ -1,6 +1,6 @@
 package agents.agent;
 
-import agents.entity.AgentEntity;
+import agents.entity.Agent;
 import com.google.adk.agents.BaseAgent;
 import com.google.adk.agents.LlmAgent;
 import com.google.adk.tools.GoogleSearchTool;
@@ -13,7 +13,7 @@ import org.springframework.stereotype.Component;
 @Component
 public class AgentFactory {
 
-    public BaseAgent createAgentInstance(AgentEntity entity) {
+    public BaseAgent createAgentInstance(Agent entity) {
         LlmAgent.Builder builder = LlmAgent.builder()
                 .name(entity.getName())
                 .description(entity.getDescription())

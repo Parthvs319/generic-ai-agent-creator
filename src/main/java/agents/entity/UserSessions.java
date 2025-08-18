@@ -39,7 +39,7 @@ public class UserSessions extends AttrsModel {
 
     @OneToOne
     @JoinColumn(name = "agent_id")
-    private AgentEntity agent;
+    private Agent agent;
 
     public List<Conversation> getHistory() {
         if(history == null) {

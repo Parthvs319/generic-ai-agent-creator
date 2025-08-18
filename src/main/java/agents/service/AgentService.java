@@ -20,7 +20,6 @@ import com.google.adk.events.Event;
 import agents.entity.repos.UserRepository;
 import agents.entity.repos.UserSessionRepository;
 import com.google.genai.types.Part;
-import io.grpc.internal.JsonUtil;
 import io.reactivex.rxjava3.core.Flowable;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -61,7 +60,7 @@ public class AgentService {
 
     @Transactional
     public String createAgent(CreateAgentRequest req) {
-        AgentEntity entity = new AgentEntity();
+        Agent entity = new Agent();
         String uuid = UUID.randomUUID().toString();
         entity.setAgentId(uuid);
         entity.setName(req.name());
@@ -91,7 +90,7 @@ public class AgentService {
 
     @Transactional
     public void addToolToAgent(String agentUuid, AddToolRequest req) {
-        AgentEntity agent = agentRepo.findByAgentId(agentUuid)
+        Agent agent = agentRepo.findByAgentId(agentUuid)
                 .orElseThrow(() -> new NoSuchElementException("agent not found"));
         ToolEntity te = new ToolEntity();
         te.setAgent(agent);
@@ -106,7 +105,7 @@ public class AgentService {
     public String runAgent(String uuid, String input, Long userId) {
         System.out.println("runAgent started with uuid=" + uuid + ", input=" + input + ", userId=" + userId);
 
-        AgentEntity agentEntity = agentRepo.findByAgentId(uuid)
+        Agent agentEntity = agentRepo.findByAgentId(uuid)
                 .orElseThrow(() -> {
                     System.out.println("Agent not found with uuid: " + uuid);
                     return new NoSuchElementException("agent not found");
@@ -196,7 +195,7 @@ public class AgentService {
         return response;
     }
 
-    private Session getSessionByUserAndAgentId(User user, AgentEntity entity, InMemoryRunner runner) {
+    private Session getSessionByUserAndAgentId(User user, Agent entity, InMemoryRunner runner) {
         System.out.println("Fetching UserSessions for userId=" + user.getId() + ", agentId=" + entity.getId());
 
         String appName = String.format("%s::%s", entity.getName(), user.getId());
@@ -231,7 +230,7 @@ public class AgentService {
     }
 
 
-    private UserSessions getSessionByUserAndAgentId(User user, AgentEntity entity , BaseAgent agent , Runner runner ) {
+    private UserSessions getSessionByUserAndAgentId(User user, Agent entity , BaseAgent agent , Runner runner ) {
         System.out.println("Fetching UserSessions for userId=" + user.getId() + ", agentId=" + entity.getId());
 
         String appName = String.format("%s::%s", entity.getName(), user.getId());

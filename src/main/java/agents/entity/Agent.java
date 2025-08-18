@@ -13,7 +13,7 @@ import java.util.List;
 @EqualsAndHashCode(callSuper = false)
 @Table(name = "agents")
 @NoArgsConstructor
-public class AgentEntity extends AttrsModel{
+public class Agent extends AttrsModel{
 
     @Column(nullable=false, unique=true, length=36)
     private String agentId;

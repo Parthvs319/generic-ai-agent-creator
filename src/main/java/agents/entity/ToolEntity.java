@@ -13,7 +13,7 @@ public class ToolEntity extends AttrsModel {
 
     @ManyToOne
     @JoinColumn(name = "agent_id", nullable = false)
-    private AgentEntity agent;
+    private Agent agent;
 
     private String name;
 
