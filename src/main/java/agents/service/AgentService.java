@@ -74,14 +74,19 @@ public class AgentService {
 
     @Transactional
     public String createUser(CreateUserRequest req) {
-        User user = new User();
-        user.setName(req.name());
-        user.setPassword(req.password());
-        user.setUserId(UUID.randomUUID().toString());
-        user.setUserName(req.userName());
-        user.setEmail(req.email());
-        userRepository.save(user);
-        return user.getUserId();
+        User user1 = userRepository.findByEmail(req.email());
+        if(user1 != null) {
+            throw new RuntimeException("Email Allready Present !");
+        } else {
+            User user = new User();
+            user.setName(req.name());
+            user.setPassword(req.password());
+            user.setUserId(UUID.randomUUID().toString());
+            user.setUserName(req.userName());
+            user.setEmail(req.email());
+            userRepository.save(user);
+            return user.getUserId();
+        }
     }
 
     @Transactional
@@ -133,9 +138,9 @@ public class AgentService {
 
         StringBuilder pastConversation = new StringBuilder("These are the past conversation for this session ! Please use this as reference while responding !");
 
-        for(Conversation conversation : userSessions.getHistory()) {
-            pastConversation.append("This was the input : ").append(conversation.getInput()).append("This was the output : ").append(conversation.getResponse());
-        }
+//        for(Conversation conversation : userSessions.getHistory()) {
+//            pastConversation.append("This was the input : ").append(conversation.getInput()).append("This was the output : ").append(conversation.getResponse());
+//        }
 
        pastConversation.append("This is my new input for this session : ").append(input);
 
