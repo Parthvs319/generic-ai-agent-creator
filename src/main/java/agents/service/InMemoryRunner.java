@@ -1,17 +1,11 @@
 package agents.service;
 
-import com.fasterxml.jackson.databind.annotation.JsonDeserialize;
-import com.fasterxml.jackson.databind.annotation.JsonSerialize;
 import com.google.adk.agents.BaseAgent;
 import com.google.adk.artifacts.InMemoryArtifactService;
 import com.google.adk.sessions.InMemorySessionService;
 import com.google.adk.sessions.Session;
 import lombok.Data;
 import lombok.EqualsAndHashCode;
-import org.springframework.beans.factory.annotation.Autowired;
-
-import java.util.ArrayList;
-import java.util.List;
 
 /** The class for the in-memory GenAi runner, using in-memory artifact and session services. */
 

@@ -7,15 +7,14 @@ import agents.dto.AddToolRequest;
 import agents.dto.CreateAgentRequest;
 import agents.dto.CreateUserRequest;
 import agents.entity.*;
-import agents.entity.repos.RunnerRepo;
 import agents.helpers.Conversation;
 import agents.helpers.RoutingError;
-import com.google.adk.agents.RunConfig;
+import agents.helpers.enums.AgentType;
+import com.google.adk.agents.*;
 import com.google.adk.artifacts.InMemoryArtifactService;
 import com.google.adk.sessions.Session;
 import com.google.genai.types.Content;
 import agents.entity.repos.AgentRepository;
-import com.google.adk.agents.BaseAgent;
 import com.google.adk.events.Event;
 import agents.entity.repos.UserRepository;
 import agents.entity.repos.UserSessionRepository;
@@ -29,7 +28,6 @@ import org.springframework.transaction.annotation.Transactional;
 
 import java.time.Instant;
 import java.util.*;
-import java.util.concurrent.ConcurrentHashMap;
 
 @Service
 public class AgentService {
@@ -46,14 +44,12 @@ public class AgentService {
     private final ToolRegistry toolRegistry;
     @Autowired
     private final AgentFactory agentFactory;
-    @Autowired
-    private final RunnerRepo runnerRepository;
 
-    public AgentService(AgentRepository agentRepo, ToolRegistry toolRegistry, AgentFactory agentFactory , UserRepository userRepository , UserSessionRepository userSessionRepository , RunnerRepo runnerRepository) {
+
+    public AgentService(AgentRepository agentRepo, ToolRegistry toolRegistry, AgentFactory agentFactory, UserRepository userRepository, UserSessionRepository userSessionRepository) {
         this.agentRepo = agentRepo;
         this.toolRegistry = toolRegistry;
         this.userRepository = userRepository;
-        this.runnerRepository = runnerRepository;
         this.userSessionRepository = userSessionRepository;
         this.agentFactory = agentFactory;
     }
@@ -74,7 +70,7 @@ public class AgentService {
     @Transactional
     public String createUser(CreateUserRequest req) {
         User user1 = userRepository.findByEmail(req.email());
-        if(user1 != null) {
+        if (user1 != null) {
             throw new RuntimeException("Email Allready Present !");
         } else {
             User user = new User();
@@ -126,41 +122,22 @@ public class AgentService {
         System.out.println("Created BaseAgent instance: " + agent);
 
         String appName = String.format("%s::%s", agentEntity.getName(), user.getId());
-        Runner runner = new Runner(agent , appName , new InMemoryArtifactService() , new InMemorySessionService());
+        Runner runner = new Runner(agent, appName, new InMemoryArtifactService(), new InMemorySessionService());
         // Get or create cached runner for this agent
-        UserSessions userSessions = getSessionByUserAndAgentId(user , agentEntity ,agent , runner);
-
+        UserSessions userSessions = getSessionByUserAndAgentId(user, agentEntity,  runner);
         Session session = userSessions.getSession();
         System.out.println("Obtained session: " + session);
         System.out.println("Session id: " + session.id());
         System.out.println("User id: " + user.getUserId());
-
-        StringBuilder pastConversation = new StringBuilder("These are the past conversation for this session ! Please use this as reference while responding !");
-
-//        for(Conversation conversation : userSessions.getHistory()) {
-//            pastConversation.append("This was the input : ").append(conversation.getInput()).append("This was the output : ").append(conversation.getResponse());
-//        }
-
-       pastConversation.append("This is my new input for this session : ").append(input);
-
-        System.out.println("pastConversation" + pastConversation);
-        Content userMsg = null;
-        if(userSessions.getHistory().isEmpty()) {
-            userMsg = Content.fromParts(Part.fromText(pastConversation.toString()));
-        } else {
-            userMsg = Content.fromParts(Part.fromText(input));
-        }
+        StringBuilder pastConversation = new StringBuilder();
+        pastConversation.append("This is my new input for this session : ").append(input);
+        Content userMsg = Content.fromParts(Part.fromText(pastConversation.toString()));
         System.out.println("Created Content from input: " + userMsg);
-
         StringBuilder responseBuilder = new StringBuilder();
-
         System.out.println("Starting runner.runAsync...");
-
         List<agents.helpers.Event> eventArrayList = new ArrayList<>();
         try {
-            Flowable<Event> events = runner.runWithSessionId(user.getUserId() , session.id() , userMsg, RunConfig.builder().build());
-
-
+            Flowable<Event> events = runner.runWithSessionId(user.getUserId(), session.id(), userMsg, RunConfig.builder().build());
             events.blockingForEach(event -> {
                 agents.helpers.Event event1 = new agents.helpers.Event();
                 event1.setInvocationId(event.invocationId());
@@ -177,7 +154,7 @@ public class AgentService {
         }
 
         String response = responseBuilder.toString();
-        Conversation conversation =new Conversation();
+        Conversation conversation = new Conversation();
         String id = UUID.randomUUID().toString();
         conversation.setId(id);
         conversation.setInput(input);
@@ -195,48 +172,13 @@ public class AgentService {
         return response;
     }
 
-    private Session getSessionByUserAndAgentId(User user, Agent entity, InMemoryRunner runner) {
+    private UserSessions getSessionByUserAndAgentId(User user, Agent entity,  Runner runner) {
         System.out.println("Fetching UserSessions for userId=" + user.getId() + ", agentId=" + entity.getId());
 
         String appName = String.format("%s::%s", entity.getName(), user.getId());
         System.out.println("App name: " + appName);
 
-        UserSessions userSessions = userSessionRepository.findByUserIdAndAgentIdAndActive(user.getId(), entity.getId() , "true");
-        Session session = null;
-
-        if (userSessions == null) {
-            System.out.println("No existing UserSessions found, creating new session and UserSessions.");
-
-            session = createNewSession(runner, appName, user.getUserId());
-
-            UserSessions newUserSession = new UserSessions();
-            newUserSession.setAgent(entity);
-            newUserSession.setUser(user);
-            newUserSession.setSessionId(session.id());
-            newUserSession.setSession(session);
-            newUserSession.setLastUpdateTime(Instant.now());
-            newUserSession.setAppName(appName);
-
-            userSessionRepository.save(newUserSession);
-            System.out.println("Saved new UserSessions: " + newUserSession);
-
-        } else {
-            System.out.println("Found existing UserSessions: " + userSessions);
-
-            session = getOrCreateSession(runner, appName, user.getUserId(), userSessions);
-        }
-
-        return session;
-    }
-
-
-    private UserSessions getSessionByUserAndAgentId(User user, Agent entity , BaseAgent agent , Runner runner ) {
-        System.out.println("Fetching UserSessions for userId=" + user.getId() + ", agentId=" + entity.getId());
-
-        String appName = String.format("%s::%s", entity.getName(), user.getId());
-        System.out.println("App name: " + appName);
-
-        UserSessions userSessions = userSessionRepository.findByUserIdAndAgentIdAndActive(user.getId(), entity.getId() , "true");
+        UserSessions userSessions = userSessionRepository.findByUserIdAndAgentIdAndActive(user.getId(), entity.getId(), "true");
         Session session = null;
 
         if (userSessions == null) {
@@ -260,15 +202,15 @@ public class AgentService {
             userSessions = newUserSession;
         } else {
             InMemorySessionService inMemorySessionService = (InMemorySessionService) runner.getSessionService();
-            inMemorySessionService.addSession(userSessions.getSession() , userSessions.getSessionId() , user.getUserId() , appName );
+            inMemorySessionService.addSession(userSessions.getSession(), userSessions.getSessionId(), user.getUserId(), appName);
             for (agents.helpers.Event event : userSessions.getConfig().getEventList()) {
-                inMemorySessionService.appendEvent(userSessions.getSession() , Event.builder()
-                                .id(event.getEventId())
-                                .invocationId(event.getInvocationId())
-                                .author("user")
+                inMemorySessionService.appendEvent(userSessions.getSession(), Event.builder()
+                        .id(event.getEventId())
+                        .invocationId(event.getInvocationId())
+                        .author("user")
                         .content((Content.fromParts(Part.fromText(event.getInput())))).build());
             }
-            System.out.println("Events : " + inMemorySessionService.listEvents(appName , user.getUserId() , userSessions.getSessionId()));
+            System.out.println("Events : " + inMemorySessionService.listEvents(appName, user.getUserId(), userSessions.getSessionId()));
 
         }
         return userSessions;
@@ -304,178 +246,8 @@ public class AgentService {
         }
     }
 
-    private Session getOrCreateSession(InMemoryRunner runner, String appName, String userId, UserSessions userSessions) {
-        try {
-            System.out.println("Attempting to retrieve existing session: " + userSessions.getSessionId());
-
-            Session existingSession = runner.sessionService()
-                    .getSession(appName, userId, userSessions.getSessionId(), Optional.empty())
-                    .blockingGet();
-
-            if (existingSession != null) {
-                System.out.println("Successfully retrieved existing session: " + existingSession.id());
-                return existingSession;
-            } else {
-                System.out.println("Existing session returned null, creating new session");
-            }
-        } catch (Exception e) {
-            System.out.println("Error retrieving existing session: " + e.getMessage());
-        }
-
-        Session newSession = createNewSession(runner, appName, userId);
-
-        userSessions.setSession(newSession);
-        userSessions.setSessionId(newSession.id());
-        userSessions.setLastUpdateTime(Instant.now());
-        userSessionRepository.save(userSessions);
-
-        System.out.println("Updated UserSessions with new session: " + newSession.id());
-        return newSession;
-    }
-
-    private final Map<String, InMemoryRunner> runnerCache = new ConcurrentHashMap<>();
-
-// Alternative approach - if the above still doesn't work, try this simplified version
-// that doesn't rely on database session storage
-
-/*
-private Session getSessionByUserAndAgentId(User user, AgentEntity entity, InMemoryRunner runner) {
-    String appName = String.format("%s::%s", entity.getName(), user.getId());
-    System.out.println("App name: " + appName);
-
-    // Always create a fresh session - don't try to reuse old ones
-    Session session = runner.sessionService()
-            .createSession(appName, user.getUserId())
-            .blockingGet();
-
-    System.out.println("Created fresh session: " + session.id());
-
-    // Optionally update database record for tracking (but don't rely on it)
-    UserSessions userSessions = userSessionRepository.findByUserIdAndAgentId(user.getId(), entity.getId());
-    if (userSessions != null) {
-        userSessions.setSessionId(session.id());
-        userSessions.setLastUpdateTime(Instant.now());
-        userSessionRepository.save(userSessions);
-    }
-
-    return session;
-}
-*/
-
-//    public String runAgentV2(String agentId, String input, Long userId) {
-//        System.out.println("runAgent started with agentId=" + agentId + ", userId=" + userId);
-//
-//        AgentEntity agentEntity = agentRepo.findByAgentId(agentId)
-//                .orElseThrow(() -> new NoSuchElementException("Agent not found"));
-//        User user = userRepository.findById(userId)
-//                .orElseThrow(() -> new RoutingError("Invalid User Id"));
-//
-//        // Load agent instance
-//        BaseAgent agent = agentFactory.createAgentInstance(agentEntity);
-//        String appName = agentEntity.getName() + "::" + user.getId();
-//
-//        // Load sessionId from UserSessions table
-//        UserSessions userSession = userSessionRepository.findByUserIdAndAgentId(user.getId(), agentEntity.getId());
-//
-//        // Create runner with DB-backed SessionService
-//        Runner runner = new Runner(
-//                agent,
-//                appName,
-//                new InMemoryArtifactService(),
-//                new DbSessionService(adkSessionRepository) // Inject repo
-//        );
-//
-//        Session session;
-//        if (userSession != null && userSession.getSessionId() != null) {
-//            // Try to load existing session
-//            session = runner.sessionService()
-//                    .getSession(appName, user.getUserId(), userSession.getSessionId(), Optional.empty())
-//                    .blockingGet();
-//
-//            if (session == null) {
-//                // Session expired/missing → create new
-//                session = runner.sessionService().createSession(appName, user.getUserId()).blockingGet();
-//                userSession.setSessionId(session.id());
-//                userSessionRepository.save(userSession);
-//            }
-//        } else {
-//            // No record → create fresh session
-//            session = runner.sessionService().createSession(appName, user.getUserId()).blockingGet();
-//
-//            userSession = new UserSessions();
-//            userSession.setAgent(agentEntity);
-//            userSession.setUser(user);
-//            userSession.setSessionId(session.id());
-//            userSession.setAppName(appName);
-//            userSession.setLastUpdateTime(Instant.now());
-//            userSessionRepository.save(userSession);
-//        }
-//
-//        // Send message
-//        Content userMsg = Content.fromParts(Part.fromText(input));
-//        StringBuilder responseBuilder = new StringBuilder();
-//
-//        Flowable<Event> events = runner.runWithSessionId(
-//                user.getUserId(),
-//                session.id(),
-//                userMsg,
-//                RunConfig.builder().build()
-//        );
-//
-//        events.blockingForEach(event -> responseBuilder.append(event.stringifyContent()));
-//
-//        return responseBuilder.toString();
-//    }
-
-
-
-
-
-
-
 
 
 
 
 }
-
-// Alternative Option 2: If you need to create fresh runners each time,
-// don't store sessions in database, let the runner handle everything
-
-/*
-Alternative approach - Let the runner handle session management entirely:
-
-private Session getSessionByUserAndAgentId(User user, AgentEntity entity, InMemoryRunner runner) {
-    String appName = String.format("%s::%s", entity.getName(), user.getId());
-    System.out.println("App name: " + appName);
-
-    Session session;
-    try {
-        // Try to get existing session first
-        List<Session> existingSessions = runner.sessionService()
-                .listSessions(appName, user.getUserId())
-                .blockingGet();
-
-        if (existingSessions != null && !existingSessions.isEmpty()) {
-            session = existingSessions.get(0); // Get the first/most recent session
-            System.out.println("Using existing session: " + session.id());
-        } else {
-            // Create new session if none exists
-            session = runner.sessionService()
-                    .createSession(appName, user.getUserId())
-                    .blockingGet();
-            System.out.println("Created new session: " + session.id());
-        }
-    } catch (Exception e) {
-        System.out.println("Error managing sessions, creating new one: " + e.getMessage());
-        session = runner.sessionService()
-                .createSession(appName, user.getUserId())
-                .blockingGet();
-        System.out.println("Created fallback session: " + session.id());
-    }
-
-    return session;
-}
-*/
-
-

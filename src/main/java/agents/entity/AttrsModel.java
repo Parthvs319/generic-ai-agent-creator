@@ -4,6 +4,8 @@ import agents.annotations.DbJsonB;
 import jakarta.persistence.*;
 import lombok.Data;
 import lombok.EqualsAndHashCode;
+import org.hibernate.annotations.JdbcTypeCode;
+import org.hibernate.type.SqlTypes;
 
 import java.sql.Timestamp;
 import java.util.HashMap;
@@ -26,7 +28,7 @@ public abstract class AttrsModel {
     @Column(name = "deleted")
     private boolean deleted = false;
 
-    @DbJsonB
+    @JdbcTypeCode(SqlTypes.JSON)
     private HashMap<String,String> attrs = new HashMap<>();
 
 

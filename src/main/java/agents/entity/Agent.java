@@ -1,12 +1,17 @@
 package agents.entity;
 
+import agents.helpers.enums.AgentType;
 import jakarta.persistence.*;
 import lombok.Data;
 import lombok.EqualsAndHashCode;
 import lombok.NoArgsConstructor;
+import org.hibernate.annotations.JdbcTypeCode;
+import org.hibernate.type.SqlTypes;
 
 import java.util.ArrayList;
+import java.util.LinkedHashSet;
 import java.util.List;
+import java.util.Set;
 
 @Entity
 @Data
@@ -19,6 +24,19 @@ public class Agent extends AttrsModel{
     private String agentId;
 
     private String name;
+
+    @JdbcTypeCode(SqlTypes.JSON)
+    private AgentType type = AgentType.SINGLE_AGENT;
+
+    public Set<Long> getAgents() {
+        if(this.agents == null) {
+            this.agents = new LinkedHashSet<>();
+        }
+        return this.agents;
+    }
+
+    @JdbcTypeCode(SqlTypes.JSON)
+    private Set<Long> agents = new LinkedHashSet<>();
 
     @Column(columnDefinition = "TEXT")
     private String description;
