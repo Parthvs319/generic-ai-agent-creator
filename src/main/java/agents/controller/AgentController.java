@@ -5,6 +5,7 @@ import agents.dto.CreateAgentRequest;
 import agents.dto.CreateUserRequest;
 import agents.dto.RunRequest;
 import agents.helpers.RoutingError;
+import agents.helpers.SuccessResponse;
 import agents.service.AgentService;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
@@ -52,4 +53,18 @@ public class AgentController {
             throw new RoutingError(e.getMessage());
         }
     }
+
+
+    @PostMapping("/{sessionId}/session/markInactive")
+    public ResponseEntity<SuccessResponse> markSessionInactive(@PathVariable Long sessionId) {
+        try {
+            SuccessResponse successResponse = svc.markSessionInactive(sessionId);
+            return ResponseEntity.ok(successResponse);
+        } catch (Exception e) {
+            e.printStackTrace();
+            throw new RoutingError(e.getMessage());
+        }
+    }
+
+
 }

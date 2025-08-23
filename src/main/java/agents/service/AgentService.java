@@ -9,6 +9,7 @@ import agents.dto.CreateUserRequest;
 import agents.entity.*;
 import agents.helpers.Conversation;
 import agents.helpers.RoutingError;
+import agents.helpers.SuccessResponse;
 import agents.helpers.enums.AgentType;
 import com.google.adk.agents.*;
 import com.google.adk.artifacts.InMemoryArtifactService;
@@ -63,6 +64,8 @@ public class AgentService {
         entity.setDescription(req.description());
         entity.setModel(req.model());
         entity.setInstruction(req.instruction());
+        entity.setAgents(req.agents());
+        entity.setType(req.type());
         agentRepo.save(entity);
         return uuid;
     }
@@ -246,7 +249,16 @@ public class AgentService {
         }
     }
 
-
+    public SuccessResponse markSessionInactive(Long sessionId) {
+        UserSessions sessions = userSessionRepository.findById(sessionId);
+        if(sessions != null) {
+            sessions.setActive("false");
+            userSessionRepository.save(sessions);
+        } else {
+            throw new RoutingError("Invalid Id passed !");
+        }
+        return new SuccessResponse();
+    }
 
 
 

@@ -8,7 +8,8 @@ import java.util.Optional;
 
 public interface UserSessionRepository extends JpaRepository<UserSessions, String> {
 
-    Optional<UserSessions> findById(String id);
+
+    UserSessions findById(Long id);
 
     UserSessions findByUserIdAndAgentIdAndActive(Long userId, Long agentId , String active);
 
