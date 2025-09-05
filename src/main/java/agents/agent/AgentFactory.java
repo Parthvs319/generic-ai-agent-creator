@@ -30,7 +30,8 @@ public class AgentFactory {
 
     public BaseAgent createAgentInstance(Agent entity) {
         BaseAgent agent = null;
-        AgentType type = entity.getType();
+        System.out.println("Entity Type : " + entity.getType());
+        AgentType type = (AgentType) entity.getType();
         if(type.equals(AgentType.SINGLE_AGENT)) {
             agent = LlmAgent.builder()
                     .name(entity.getName())

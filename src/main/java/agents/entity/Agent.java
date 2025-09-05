@@ -25,7 +25,7 @@ public class Agent extends AttrsModel{
 
     private String name;
 
-    @JdbcTypeCode(SqlTypes.JSON)
+    @JdbcTypeCode(SqlTypes.VARCHAR)
     private AgentType type = AgentType.SINGLE_AGENT;
 
     public Set<Long> getAgents() {

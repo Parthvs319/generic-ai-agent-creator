@@ -1,6 +1,5 @@
 package agents.entity;
 
-import agents.annotations.DbJsonB;
 import jakarta.persistence.*;
 import lombok.Data;
 import lombok.EqualsAndHashCode;
@@ -28,6 +27,7 @@ public abstract class AttrsModel {
     @Column(name = "deleted")
     private boolean deleted = false;
 
+    @Transient
     @JdbcTypeCode(SqlTypes.JSON)
     private HashMap<String,String> attrs = new HashMap<>();
 
