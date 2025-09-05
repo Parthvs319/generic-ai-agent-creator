@@ -1,12 +1,10 @@
 package agents.agent;
 
 import agents.entity.Agent;
-import agents.entity.repos.AgentRepository;
+import agents.repos.AgentRepository;
 import agents.helpers.enums.AgentType;
-import agents.service.AgentService;
 import com.google.adk.agents.*;
 import com.google.adk.tools.GoogleSearchTool;
-import org.checkerframework.checker.units.qual.A;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Component;
 

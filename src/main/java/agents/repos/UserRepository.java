@@ -1,4 +1,4 @@
-package agents.entity.repos;
+package agents.repos;
 
 import agents.entity.User;
 import org.jetbrains.annotations.NotNull;
